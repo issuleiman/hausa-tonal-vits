@@ -1,12 +1,14 @@
-"""Configuration objects for the Hausa TTS framework."""
-
-from __future__ import annotations
-
+import json
+import os
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Union
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 from . import text as ha
-from .modules import ProsodyEncoder
 
 
 @dataclass
@@ -131,6 +133,42 @@ class HausaVITSConfig:
         keys = {f for f in cls.__dataclass_fields__}
         return cls(**{k: v for k, v in d.items() if k in keys})
 
+    def to_json(self, path: Optional[str] = None, indent: int = 2) -> str:
+        s = json.dumps(self.to_dict(), indent=indent)
+        if path:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(s)
+        return s
+
+    @classmethod
+    def from_json(cls, path_or_str: str) -> "HausaVITSConfig":
+        if os.path.isfile(path_or_str):
+            with open(path_or_str, "r", encoding="utf-8") as f:
+                d = json.load(f)
+        else:
+            d = json.loads(path_or_str)
+        return cls.from_dict(d)
+
+    def to_yaml(self, path: Optional[str] = None) -> str:
+        if yaml is None:
+            raise ImportError("PyYAML is required for to_yaml(). Please install pyyaml.")
+        s = yaml.dump(self.to_dict(), sort_keys=False)
+        if path:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(s)
+        return s
+
+    @classmethod
+    def from_yaml(cls, path_or_str: str) -> "HausaVITSConfig":
+        if yaml is None:
+            raise ImportError("PyYAML is required for from_yaml(). Please install pyyaml.")
+        if os.path.isfile(path_or_str):
+            with open(path_or_str, "r", encoding="utf-8") as f:
+                d = yaml.safe_load(f)
+        else:
+            d = yaml.safe_load(path_or_str)
+        return cls.from_dict(d)
+
     # ------------------------------------------------------------------
     # convenience constructors
     # ------------------------------------------------------------------
@@ -174,3 +212,48 @@ class TrainConfig:
     use_harmonic: bool = True
     tensorboard: bool = True
     seed: int = 1234
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "TrainConfig":
+        keys = {f for f in cls.__dataclass_fields__}
+        return cls(**{k: v for k, v in d.items() if k in keys})
+
+    def to_json(self, path: Optional[str] = None, indent: int = 2) -> str:
+        s = json.dumps(self.to_dict(), indent=indent)
+        if path:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(s)
+        return s
+
+    @classmethod
+    def from_json(cls, path_or_str: str) -> "TrainConfig":
+        if os.path.isfile(path_or_str):
+            with open(path_or_str, "r", encoding="utf-8") as f:
+                d = json.load(f)
+        else:
+            d = json.loads(path_or_str)
+        return cls.from_dict(d)
+
+    def to_yaml(self, path: Optional[str] = None) -> str:
+        if yaml is None:
+            raise ImportError("PyYAML is required for to_yaml(). Please install pyyaml.")
+        s = yaml.dump(self.to_dict(), sort_keys=False)
+        if path:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(s)
+        return s
+
+    @classmethod
+    def from_yaml(cls, path_or_str: str) -> "TrainConfig":
+        if yaml is None:
+            raise ImportError("PyYAML is required for from_yaml(). Please install pyyaml.")
+        if os.path.isfile(path_or_str):
+            with open(path_or_str, "r", encoding="utf-8") as f:
+                d = yaml.safe_load(f)
+        else:
+            d = yaml.safe_load(path_or_str)
+        return cls.from_dict(d)
+

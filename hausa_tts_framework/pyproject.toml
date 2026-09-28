@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hausa-tonal-vits"
+version = "0.1.0"
+description = "A tone-aware end-to-end Text-to-Speech framework for the Hausa language based on VITS."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Ismail Suleman", email = "ismailsuleman2728@gmail.com"}
+]
+keywords = [
+    "tts",
+    "text-to-speech",
+    "hausa",
+    "vits",
+    "deep-learning",
+    "pytorch",
+    "speech-synthesis",
+    "tonal-languages"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+dependencies = [
+    "torch>=2.0.0",
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "soundfile>=0.12.0",
+    "pyyaml>=6.0.0"
+]
+
+[project.scripts]
+hausa-tts-train = "hausa_tts.train:main"
+
+[tool.setuptools.packages.find]
+where = ["."]

@@ -16,6 +16,7 @@ Objectives (all jointly optimised, VITS-style adversarial + reconstruction):
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import time
@@ -29,6 +30,7 @@ from torch.utils.data import DataLoader
 from . import audio as haudio
 from . import losses as L
 from . import alignment as mas
+from .config import HausaVITSConfig, TrainConfig
 from .data import HausaTTSDataset, collate
 from .model import HausaVITS
 from .modules import SpeakerEncoder, sequence_mask
@@ -435,3 +437,86 @@ class HausaTTSTrainer:
         if ckpt.get("tone_d") and self.tone_d is not None:
             self.tone_d.load_state_dict(ckpt["tone_d"])
         self.step = ckpt.get("step", 0)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Train Hausa Tonal VITS model")
+    parser.add_argument("--config", "-c", type=str, default=None,
+                        help="Path to YAML or JSON model/train config file")
+    parser.add_argument("--train_config", type=str, default=None,
+                        help="Path to separate train config file if not in --config")
+    parser.add_argument("--train_list", type=str, default=None, help="Path to training filelist")
+    parser.add_argument("--val_list", type=str, default=None, help="Path to validation filelist")
+    parser.add_argument("--out_dir", type=str, default=None, help="Output directory for checkpoints")
+    parser.add_argument("--batch_size", type=int, default=None, help="Batch size")
+    parser.add_argument("--epochs", type=int, default=None, help="Total training epochs")
+    parser.add_argument("--max_steps", type=int, default=None, help="Max training steps before exit")
+    parser.add_argument("--device", type=str, default=None, help="Device (cuda or cpu)")
+    parser.add_argument("--fp16", action="store_true", help="Enable FP16 mixed precision")
+    parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
+    args = parser.parse_args()
+
+    cfg = None
+    tcfg = None
+
+    if args.config:
+        if args.config.endswith(".json"):
+            with open(args.config, "r", encoding="utf-8") as f:
+                d = json.load(f)
+        elif args.config.endswith((".yaml", ".yml")):
+            try:
+                import yaml
+            except ImportError:
+                raise ImportError("PyYAML is required for YAML configs. Run: pip install pyyaml")
+            with open(args.config, "r", encoding="utf-8") as f:
+                d = yaml.safe_load(f)
+        else:
+            raise ValueError(f"Unknown config format: {args.config}")
+
+        if "model" in d:
+            cfg = HausaVITSConfig.from_dict(d["model"])
+        else:
+            cfg = HausaVITSConfig.from_dict(d)
+
+        if "train" in d:
+            tcfg = TrainConfig.from_dict(d["train"])
+
+    if cfg is None:
+        cfg = HausaVITSConfig.single_speaker()
+    if tcfg is None:
+        if args.train_config:
+            tcfg = (
+                TrainConfig.from_yaml(args.train_config)
+                if args.train_config.endswith((".yaml", ".yml"))
+                else TrainConfig.from_json(args.train_config)
+            )
+        else:
+            tcfg = TrainConfig()
+
+    # CLI overrides
+    if args.train_list:
+        tcfg.train_list = args.train_list
+    if args.val_list:
+        tcfg.val_list = args.val_list
+    if args.out_dir:
+        tcfg.out_dir = args.out_dir
+    if args.batch_size:
+        cfg.batch_size = args.batch_size
+    if args.epochs:
+        cfg.epochs = args.epochs
+    if args.device:
+        cfg.device = args.device
+    if args.fp16:
+        tcfg.fp16 = True
+
+    trainer = HausaTTSTrainer(cfg, tcfg)
+    if args.resume:
+        trainer.load(args.resume)
+        print(f"Resumed from {args.resume} at step {trainer.step}")
+
+    trainer.train(max_steps=args.max_steps)
+
+
+if __name__ == "__main__":
+    main()
+
