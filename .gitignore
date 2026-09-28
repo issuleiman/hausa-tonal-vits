@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PyTorch checkpoints & logs
+*.pth
+*.pt
+*.onnx
+runs/
+wandb/
+logs/
+
+# Audio data (too large for git)
+*.wav
+*.mp3
+*.flac
+*.ogg
+
+# Cython build artifacts
+*.c
+*.html
+monotonic_align/core.cpython-*.so
+
+# Misc
+.env
+*.log
