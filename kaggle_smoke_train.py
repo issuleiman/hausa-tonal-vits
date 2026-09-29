@@ -94,6 +94,52 @@ TARGET_SR = 22050
 # ==============================================================================
 # 2. Dataset Streamer & Extractor (HuggingFace -> Local WAVs)
 # ==============================================================================
+def extract_audio_array(audio_data, target_sr: int = 22050):
+    """Robustly extracts a 1D float32 numpy waveform and sample rate.
+    
+    Supports:
+      - Torchcodec AudioDecoder (used in modern HuggingFace datasets)
+      - Dictionary with 'array' and 'sampling_rate'
+      - Dictionary with 'bytes'
+      - PyTorch Tensor / Numpy array
+    """
+    arr = None
+    sr = target_sr
+
+    if hasattr(audio_data, "get_all_samples"):
+        # Torchcodec AudioDecoder
+        samples = audio_data.get_all_samples()
+        arr = samples.data
+        sr = getattr(samples, "sample_rate", target_sr)
+    elif isinstance(audio_data, dict):
+        if "array" in audio_data and audio_data["array"] is not None:
+            arr = audio_data["array"]
+            sr = audio_data.get("sampling_rate", target_sr)
+        elif "bytes" in audio_data and audio_data["bytes"] is not None:
+            import io
+            arr, sr = sf.read(io.BytesIO(audio_data["bytes"]), dtype="float32")
+    elif hasattr(audio_data, "data"):
+        arr = audio_data.data
+        sr = getattr(audio_data, "sample_rate", target_sr)
+
+    if arr is None:
+        return None, sr
+
+    if isinstance(arr, torch.Tensor):
+        arr = arr.detach().cpu().float().numpy()
+    elif not isinstance(arr, np.ndarray):
+        arr = np.array(arr, dtype=np.float32)
+
+    arr = arr.squeeze()
+    if arr.ndim > 1:
+        if arr.shape[0] < arr.shape[-1]:
+            arr = arr.mean(axis=0)
+        else:
+            arr = arr.mean(axis=-1)
+
+    return arr.astype(np.float32), int(sr)
+
+
 def download_and_prepare_data(
     dataset_name: str = "suleiman2003/W_hausa_v7",
     single_spk: int = 88,
@@ -131,25 +177,19 @@ def download_and_prepare_data(
         processed += 1
         spk_id = int(item.get("speaker_id", -1))
         text = item.get("text", "").strip()
-        audio_data = item.get("audio", {})
+        audio_data = item.get("audio", None)
 
-        if not text or not audio_data:
+        if not text or audio_data is None:
             continue
 
         clean_text = normalise(text)
         if not clean_text or len(clean_text) < 3:
             continue
 
-        # Extract waveform array and sample rate
-        arr = audio_data.get("array")
-        sr = audio_data.get("sampling_rate", TARGET_SR)
-
-        if arr is None:
+        # Extract waveform array and sample rate using universal extractor
+        arr, sr = extract_audio_array(audio_data, TARGET_SR)
+        if arr is None or len(arr) == 0:
             continue
-
-        arr = np.array(arr, dtype=np.float32)
-        if arr.ndim > 1:
-            arr = arr.mean(axis=1)
 
         # Resample to 22050 Hz if needed
         if sr != TARGET_SR:
